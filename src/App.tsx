@@ -57,6 +57,12 @@ const PLANETS: PlanetInfo[] = [
     story: 'Венера похожа на Землю размером, но покрыта плотными облаками серной кислоты. Это самая горячая планета Солнечной системы.',
   },
   {
+    name: 'Земля',
+    color: '#0ea5e9',
+    emissive: '#082f49',
+    story: 'Земля — наш дом и единственная известная планета с жизнью. Большую часть поверхности покрывают океаны, а атмосфера защищает нас от космоса.',
+  },
+  {
     name: 'Марс',
     color: '#ef4444',
     emissive: '#7f1d1d',
@@ -87,6 +93,128 @@ const PLANETS: PlanetInfo[] = [
     emissive: '#1e3a8a',
     story: 'Нептун — далёкий ледяной гигант с очень сильными ветрами. Это самая дальняя большая планета от Солнца.',
   },
+  {
+    name: 'Плутон',
+    color: '#d6d3d1',
+    emissive: '#44403c',
+    story: 'Плутон — карликовая планета в поясе Койпера. У него есть большое сердцеобразное ледяное пятно и спутник Харон.',
+  },
+  {
+    name: 'Церера',
+    color: '#a8a29e',
+    emissive: '#292524',
+    story: 'Церера — карликовая планета в главном поясе астероидов. На её поверхности есть яркие соляные пятна.',
+  },
+  {
+    name: 'Эрида',
+    color: '#e5e7eb',
+    emissive: '#374151',
+    story: 'Эрида — одна из самых массивных карликовых планет за орбитой Нептуна. Её открытие помогло пересмотреть статус Плутона.',
+  },
+  {
+    name: 'Макемаке',
+    color: '#fb7185',
+    emissive: '#881337',
+    story: 'Макемаке — холодная карликовая планета пояса Койпера. На ней так далеко от Солнца, что метан замерзает на поверхности.',
+  },
+  {
+    name: 'Хаумеа',
+    color: '#f8fafc',
+    emissive: '#475569',
+    hasRing: true,
+    story: 'Хаумеа вращается очень быстро и поэтому вытянута, как мяч для регби. У неё есть кольцо и два известных спутника.',
+  },
+  {
+    name: 'Седна',
+    color: '#f97316',
+    emissive: '#7c2d12',
+    story: 'Седна — очень далёкий транснептуновый объект. Один оборот вокруг Солнца занимает у неё тысячи земных лет.',
+  },
+  {
+    name: 'Орк',
+    color: '#cbd5e1',
+    emissive: '#334155',
+    story: 'Орк — крупный объект пояса Койпера. Его иногда называют анти-Плутоном, потому что его орбита похожа, но расположена иначе.',
+  },
+  {
+    name: 'Квавар',
+    color: '#f59e0b',
+    emissive: '#78350f',
+    hasRing: true,
+    story: 'Квавар — далёкий объект за Нептуном. Астрономы обнаружили у него необычное кольцо, которое находится дальше ожидаемого.',
+  },
+  {
+    name: 'Гунгун',
+    color: '#dc2626',
+    emissive: '#7f1d1d',
+    story: 'Гунгун — далёкий ледяной мир с красноватой поверхностью. Его цвет может быть связан с органическими веществами, изменёнными излучением.',
+  },
+  {
+    name: 'Веста',
+    color: '#d4d4d8',
+    emissive: '#3f3f46',
+    story: 'Веста — один из крупнейших объектов пояса астероидов. На ней есть огромный кратер, оставленный древним столкновением.',
+  },
+  {
+    name: 'Проксима b',
+    color: '#22c55e',
+    emissive: '#14532d',
+    story: 'Проксима Центавра b — экзопланета у ближайшей к Солнцу звезды. Она находится в зоне, где теоретически может существовать жидкая вода.',
+  },
+  {
+    name: 'TRAPPIST-1e',
+    color: '#38bdf8',
+    emissive: '#075985',
+    story: 'TRAPPIST-1e — экзопланета в системе из семи каменных миров. Она интересна учёным как возможный кандидат на похожие на земные условия.',
+  },
+  {
+    name: 'Kepler-452b',
+    color: '#84cc16',
+    emissive: '#365314',
+    story: 'Kepler-452b иногда называют старшим кузеном Земли. Она обращается вокруг звезды, похожей на Солнце, но находится очень далеко от нас.',
+  },
+  {
+    name: 'Kepler-22b',
+    color: '#06b6d4',
+    emissive: '#164e63',
+    story: 'Kepler-22b — одна из первых найденных планет в обитаемой зоне своей звезды. Её точный состав пока остаётся загадкой.',
+  },
+  {
+    name: '55 Рака e',
+    color: '#fef08a',
+    emissive: '#854d0e',
+    story: '55 Рака e — сверхземля, которая обращается очень близко к своей звезде. Там настолько жарко, что поверхность может быть расплавленной.',
+  },
+  {
+    name: 'HD 189733 b',
+    color: '#1d4ed8',
+    emissive: '#172554',
+    story: 'HD 189733 b — ярко-синий газовый гигант. На нём дуют чудовищные ветры, а в атмосфере могут идти стеклянные дожди.',
+  },
+  {
+    name: 'WASP-12b',
+    color: '#a855f7',
+    emissive: '#581c87',
+    story: 'WASP-12b — горячий Юпитер, который звезда постепенно растягивает и разрушает. Его форма может напоминать яйцо.',
+  },
+  {
+    name: 'TOI-700 d',
+    color: '#14b8a6',
+    emissive: '#134e4a',
+    story: 'TOI-700 d — экзопланета размером примерно с Землю в обитаемой зоне красного карлика. Это один из интересных миров для будущих наблюдений.',
+  },
+  {
+    name: 'LHS 1140 b',
+    color: '#60a5fa',
+    emissive: '#1e3a8a',
+    story: 'LHS 1140 b — плотная каменная экзопланета у красного карлика. Учёные считают её хорошей целью для поиска атмосферы.',
+  },
+  {
+    name: 'GJ 1214 b',
+    color: '#7dd3fc',
+    emissive: '#0c4a6e',
+    story: 'GJ 1214 b называют водным мини-Нептуном. Его атмосфера закрыта облаками или дымкой, поэтому изучать его непросто.',
+  },
 ]
 
 
@@ -94,54 +222,122 @@ function createRocket() {
   const rocket = new THREE.Group()
   rocket.name = 'rocket'
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#f7fafc', metalness: 0.45, roughness: 0.28 })
-  const redMat = new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.25, roughness: 0.32 })
-  const blueMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', emissive: '#1d4ed8', emissiveIntensity: 0.35 })
-  const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.5, roughness: 0.35 })
+  const whiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', metalness: 0.28, roughness: 0.18 })
+  const redMat = new THREE.MeshStandardMaterial({ color: '#ef1111', emissive: '#7f1d1d', emissiveIntensity: 0.16, metalness: 0.18, roughness: 0.22 })
+  const blueMat = new THREE.MeshStandardMaterial({ color: '#0284c7', emissive: '#0ea5e9', emissiveIntensity: 0.78, metalness: 0.1, roughness: 0.08 })
+  const deepBlueMat = new THREE.MeshStandardMaterial({ color: '#0f3e9c', emissive: '#082f49', emissiveIntensity: 0.25, metalness: 0.35, roughness: 0.2 })
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.72, roughness: 0.24 })
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#e5e7eb', metalness: 0.86, roughness: 0.16 })
+  const boltMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.9, roughness: 0.18 })
   const flameMat = new THREE.MeshStandardMaterial({ color: '#f97316', emissive: '#fb923c', emissiveIntensity: 1.8, transparent: true, opacity: 0.92 })
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 2.8, 48), bodyMat)
-  body.position.y = 0
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.58, 2.05, 12, 56), whiteMat)
+  body.scale.set(0.86, 1.08, 0.86)
+  body.position.y = 0.05
   rocket.add(body)
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.9, 48), redMat)
-  nose.position.y = 1.85
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.51, 1.12, 56), redMat)
+  nose.position.y = 1.78
   rocket.add(nose)
 
-  const windowFrame = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.045, 16, 48), darkMat)
-  windowFrame.position.set(0, 0.75, 0.47)
+
+  const topRim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 14, 72), darkMat)
+  topRim.position.y = 1.26
+  topRim.rotation.x = Math.PI / 2
+  rocket.add(topRim)
+
+  const blueBelt = new THREE.Mesh(new THREE.CylinderGeometry(0.51, 0.55, 0.17, 56), deepBlueMat)
+  blueBelt.position.y = -0.86
+  rocket.add(blueBelt)
+
+  const beltStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.515, 0.555, 0.045, 56), chromeMat)
+  beltStripe.position.y = -0.74
+  rocket.add(beltStripe)
+
+  const windowFrame = new THREE.Mesh(new THREE.TorusGeometry(0.39, 0.08, 18, 72), darkMat)
+  windowFrame.position.set(0, 0.43, 0.49)
   rocket.add(windowFrame)
 
-  const windowGlass = new THREE.Mesh(new THREE.CircleGeometry(0.18, 48), blueMat)
-  windowGlass.position.set(0, 0.75, 0.522)
+  const innerWindowFrame = new THREE.Mesh(new THREE.TorusGeometry(0.315, 0.03, 18, 72), chromeMat)
+  innerWindowFrame.position.set(0, 0.43, 0.535)
+  rocket.add(innerWindowFrame)
+
+  const windowGlass = new THREE.Mesh(new THREE.CircleGeometry(0.31, 72), blueMat)
+  windowGlass.position.set(0, 0.43, 0.565)
   rocket.add(windowGlass)
 
+  const windowShine = new THREE.Mesh(
+    new THREE.CircleGeometry(0.075, 24),
+    new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#ffffff', emissiveIntensity: 0.8, transparent: true, opacity: 0.9 }),
+  )
+  windowShine.position.set(-0.08, 0.55, 0.575)
+  windowShine.scale.set(1.8, 0.82, 1)
+  rocket.add(windowShine)
+
+  for (const [i, y] of [0.02, -0.23, -0.48].entries()) {
+    const button = new THREE.Mesh(new THREE.SphereGeometry(0.07 - i * 0.006, 24, 16), blueMat.clone())
+    button.position.set(0, y, 0.555)
+    rocket.add(button)
+  }
+
+  for (let i = 0; i < 10; i += 1) {
+    const angle = (Math.PI * 2 * i) / 10
+    const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 8), boltMat)
+    bolt.position.set(Math.sin(angle) * 0.46, 1.24, Math.cos(angle) * 0.46)
+    rocket.add(bolt)
+  }
+
   const finShape = new THREE.Shape()
-  finShape.moveTo(0, 0)
-  finShape.lineTo(0.7, -0.9)
-  finShape.lineTo(0.16, -0.72)
-  finShape.lineTo(0, 0)
-  const finGeom = new THREE.ExtrudeGeometry(finShape, { depth: 0.08, bevelEnabled: false })
+  finShape.moveTo(0, 0.5)
+  finShape.bezierCurveTo(0.55, 0.12, 0.82, -0.4, 0.68, -1.05)
+  finShape.bezierCurveTo(0.32, -0.88, 0.12, -0.58, 0, -0.22)
+  finShape.lineTo(0, 0.5)
+  const finGeom = new THREE.ExtrudeGeometry(finShape, { depth: 0.095, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.025, bevelSegments: 3 })
 
   for (const angle of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) {
     const fin = new THREE.Mesh(finGeom, redMat)
-    fin.position.y = -1.0
+    fin.position.y = -1.08
     fin.rotation.y = angle
-    fin.position.x = Math.sin(angle) * 0.42
-    fin.position.z = Math.cos(angle) * 0.42
+    fin.position.x = Math.sin(angle) * 0.46
+    fin.position.z = Math.cos(angle) * 0.46
+    rocket.add(fin)
+
+    const finLine = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.92, 0.018), chromeMat)
+    finLine.position.set(Math.sin(angle) * 0.62, -1.21, Math.cos(angle) * 0.62)
+    finLine.rotation.y = angle
+    finLine.rotation.z = -0.38
+    rocket.add(finLine)
+  }
+
+  const sideFinShape = new THREE.Shape()
+  sideFinShape.moveTo(0, 0.48)
+  sideFinShape.bezierCurveTo(0.58, 0.22, 0.95, -0.46, 0.72, -1.08)
+  sideFinShape.bezierCurveTo(0.34, -0.9, 0.12, -0.45, 0, -0.12)
+  sideFinShape.lineTo(0, 0.48)
+  const sideFinGeom = new THREE.ExtrudeGeometry(sideFinShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.025, bevelSegments: 3 })
+  for (const side of [-1, 1]) {
+    const fin = new THREE.Mesh(sideFinGeom, redMat)
+    fin.position.set(side * 0.36, -0.92, 0.42)
+    fin.scale.x = side
+    fin.rotation.z = side * 0.18
     rocket.add(fin)
   }
 
-  const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.32, 36), darkMat)
-  engine.position.y = -1.55
-  rocket.add(engine)
+  const engineOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.45, 48), chromeMat)
+  engineOuter.position.y = -1.55
+  rocket.add(engineOuter)
+
+  const engineInner = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.36, 0.48, 48), darkMat)
+  engineInner.position.y = -1.68
+  rocket.add(engineInner)
 
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.25, 36), flameMat)
   flame.name = 'flame'
-  flame.position.y = -2.25
+  flame.position.y = -2.35
   flame.rotation.x = Math.PI
   rocket.add(flame)
 
+  rocket.rotation.z = -0.08
   return rocket
 }
 
@@ -288,9 +484,9 @@ export default function App() {
     scene.add(rocket)
     const flame = rocket.getObjectByName('flame') as THREE.Mesh | undefined
 
-    const obstacles: Obstacle[] = Array.from({ length: 12 }, (_, index) => {
-      const kind: ObstacleKind = index % 3 === 0 ? 'planet' : 'comet'
-      const planet = kind === 'planet' ? PLANETS[(index / 3) % PLANETS.length | 0] : undefined
+    const obstacles: Obstacle[] = Array.from({ length: 36 }, (_, index) => {
+      const kind: ObstacleKind = index % 2 === 0 ? 'planet' : 'comet'
+      const planet = kind === 'planet' ? PLANETS[(index / 2) % PLANETS.length | 0] : undefined
       const group = kind === 'planet' && planet ? createPlanet(planet) : createComet()
       group.visible = false
       scene.add(group)
