@@ -296,7 +296,7 @@ export default function App() {
       return {
         group,
         kind,
-        radius: kind === 'planet' ? 0.9 : 0.72,
+        radius: kind === 'planet' ? 1.12 : 0.72,
         drift: (Math.random() - 0.5) * 0.9,
         spin: 0.8 + Math.random() * 1.8,
         planet,
@@ -406,7 +406,13 @@ export default function App() {
           const distance = obstacle.group.position.distanceTo(rocket.position)
           const graceOver = frame - dangerStartedAt > 5
           if (graceOver && distance < obstacle.radius + 0.34) {
-            crash(obstacle.kind === 'planet' ? obstacle.planet : undefined)
+            if (obstacle.kind === 'planet') {
+              crash(obstacle.planet)
+            } else {
+              setHint('Комета задела ракету — держись дальше от хвоста!')
+              window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')
+              placeObstacle(obstacle, rocket.position.y + 7, Math.random() * 8)
+            }
           }
         })
       }
