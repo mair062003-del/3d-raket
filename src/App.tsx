@@ -49,6 +49,14 @@ type UpgradeInfo = {
   baseCost: number
   icon: typeof Zap
 }
+type PlayfieldBounds = {
+  x: number
+  y: number
+  z: number
+  spawnAhead: number
+  spawnSpread: number
+  spawnGap: number
+}
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const MAX_UPGRADE_LEVEL = 5
@@ -57,11 +65,14 @@ const DEFAULT_UPGRADES: Upgrades = { engine: 0, maneuver: 0, shield: 0 }
 const KEYBOARD_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
 const PLAYER_BOUNDS = {
   xGround: 2.45,
-  xSpace: 4.25,
   yGround: 1.65,
-  ySpace: 2.45,
   zGround: 0.45,
   zSpace: 0.85,
+}
+const ROCKET_SCREEN_MARGIN = {
+  x: 0.62,
+  yGround: 1.45,
+  yDanger: 1.18,
 }
 const UPGRADE_LIST: UpgradeInfo[] = [
   {
@@ -88,6 +99,40 @@ const UPGRADE_LIST: UpgradeInfo[] = [
 ]
 
 const getUpgradeCost = (upgrade: UpgradeInfo, level: number) => upgrade.baseCost + level * 3
+
+const getVisibleHalfSize = (camera: THREE.PerspectiveCamera) => {
+  const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * camera.position.z
+  return {
+    halfHeight,
+    halfWidth: halfHeight * camera.aspect,
+  }
+}
+
+const getPlayfieldBounds = (camera: THREE.PerspectiveCamera, rocketScale: number, dangerMode: boolean, maneuverLevel: number): PlayfieldBounds => {
+  const { halfHeight, halfWidth } = getVisibleHalfSize(camera)
+  const xVisible = Math.max(0.9, halfWidth - ROCKET_SCREEN_MARGIN.x * rocketScale)
+  const yVisible = Math.max(0.85, halfHeight - (dangerMode ? ROCKET_SCREEN_MARGIN.yDanger : ROCKET_SCREEN_MARGIN.yGround) * rocketScale)
+
+  if (!dangerMode) {
+    return {
+      x: Math.min(PLAYER_BOUNDS.xGround, xVisible),
+      y: Math.min(PLAYER_BOUNDS.yGround, yVisible),
+      z: PLAYER_BOUNDS.zGround * (1 + maneuverLevel * 0.04),
+      spawnAhead: 8,
+      spawnSpread: 20,
+      spawnGap: 4.5,
+    }
+  }
+
+  return {
+    x: xVisible,
+    y: yVisible,
+    z: PLAYER_BOUNDS.zSpace * (1 + maneuverLevel * 0.04),
+    spawnAhead: Math.max(4.2, yVisible + 2.8),
+    spawnSpread: Math.max(14, yVisible * 4.2),
+    spawnGap: Math.max(3.2, yVisible * 0.95),
+  }
+}
 
 const loadProgress = () => {
   if (typeof window === 'undefined') {
@@ -587,8 +632,18 @@ function createPlanet(planet: PlanetInfo) {
   return group
 }
 
-function placeObstacle(obstacle: Obstacle, rocketY: number, index: number) {
-  obstacle.group.position.set((Math.random() - 0.5) * 5.2, rocketY + 8 + index * 4.5 + Math.random() * 20, (Math.random() - 0.5) * 1.8)
+function placeObstacle(obstacle: Obstacle, rocketPosition: THREE.Vector3, bounds: PlayfieldBounds, index: number) {
+  const spawnY = rocketPosition.y + bounds.spawnAhead + index * bounds.spawnGap + Math.random() * bounds.spawnSpread
+  const safeGap = Math.min(bounds.x * 0.72, obstacle.radius + 1.15)
+  let spawnX = (Math.random() * 2 - 1) * bounds.x
+
+  if (Math.abs(spawnX - rocketPosition.x) < safeGap) {
+    const side = rocketPosition.x >= 0 ? -1 : 1
+    const laneWidth = Math.max(0.1, bounds.x - safeGap)
+    spawnX = clamp(rocketPosition.x + side * (safeGap + Math.random() * laneWidth), -bounds.x, bounds.x)
+  }
+
+  obstacle.group.position.set(spawnX, spawnY, (Math.random() * 2 - 1) * bounds.z)
   obstacle.group.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
 }
 
@@ -854,11 +909,10 @@ export default function App() {
         const targetScale = altitudeValue >= 100 ? 0.52 : 1
         targetScaleVector.set(targetScale, targetScale, targetScale)
         rocket.scale.lerp(targetScaleVector, 0.055)
-        const visibleHalfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * camera.position.z
-        const visibleHalfWidth = visibleHalfHeight * camera.aspect
-        const xBound = Math.max(0.9, Math.min(dangerMode ? PLAYER_BOUNDS.xSpace : PLAYER_BOUNDS.xGround, visibleHalfWidth - 0.72 * targetScale))
-        const yBound = Math.max(0.85, Math.min(dangerMode ? PLAYER_BOUNDS.ySpace : PLAYER_BOUNDS.yGround, visibleHalfHeight - 1.45 * targetScale))
-        const zBound = (dangerMode ? PLAYER_BOUNDS.zSpace : PLAYER_BOUNDS.zGround) * (1 + currentUpgrades.maneuver * 0.04)
+        const playfieldBounds = getPlayfieldBounds(camera, targetScale, dangerMode, currentUpgrades.maneuver)
+        const xBound = playfieldBounds.x
+        const yBound = playfieldBounds.y
+        const zBound = playfieldBounds.z
         const keyboard = keyboardRef.current
         const keyboardActive = keyboard.x !== 0 || keyboard.y !== 0
         const offset = playerOffsetRef.current
@@ -903,11 +957,12 @@ export default function App() {
         if (altitudeValue >= 100 && phaseRef.current !== 'danger') {
           setGamePhase('danger')
           dangerStartedAt = frame
-          setHint('1000 км! Ракета стала меньше. Облетай кометы и настоящие планеты')
+          setHint('1000 км! Лети по всему экрану и облетай кометы с планетами')
           window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
+          const dangerPlayfield = getPlayfieldBounds(camera, targetScale, true, currentUpgrades.maneuver)
           obstacles.forEach((obstacle, index) => {
             obstacle.group.visible = true
-            placeObstacle(obstacle, altitudeY, index)
+            placeObstacle(obstacle, rocket.position, dangerPlayfield, index)
           })
         }
       } else if (phaseRef.current === 'crashed') {
@@ -922,13 +977,17 @@ export default function App() {
       }
 
       if (dangerMode) {
+        const currentUpgrades = upgradesRef.current
+        const playfieldBounds = getPlayfieldBounds(camera, rocket.scale.x, true, currentUpgrades.maneuver)
         obstacles.forEach((obstacle) => {
           obstacle.group.position.y -= (1.6 + velocity * 0.11) * delta
           obstacle.group.position.x += Math.sin(frame * 1.5 + obstacle.spin) * obstacle.drift * delta
+          obstacle.group.position.x = clamp(obstacle.group.position.x, -playfieldBounds.x, playfieldBounds.x)
+          obstacle.group.position.z = clamp(obstacle.group.position.z, -playfieldBounds.z, playfieldBounds.z)
           obstacle.group.rotation.x += delta * obstacle.spin
           obstacle.group.rotation.y += delta * obstacle.spin * 0.75
 
-          const passedRocket = obstacle.group.position.y < altitudeY - 4
+          const passedRocket = obstacle.group.position.y < rocket.position.y - playfieldBounds.y - 1.4
           if (passedRocket) {
             avoided += 1
             setDangerScore(avoided)
@@ -936,7 +995,7 @@ export default function App() {
               setCoins((current) => current + 1)
               setHint('Чистый пролёт мимо кометы: +1 монета')
             }
-            placeObstacle(obstacle, altitudeY + 6, Math.random() * 8)
+            placeObstacle(obstacle, rocket.position, playfieldBounds, Math.random() * 6)
           }
 
           const distance = obstacle.group.position.distanceTo(rocket.position)
@@ -946,7 +1005,7 @@ export default function App() {
               showPlanetStory(obstacle.planet)
               avoided += 1
               setDangerScore(avoided)
-              placeObstacle(obstacle, altitudeY + 9, Math.random() * 8)
+              placeObstacle(obstacle, rocket.position, playfieldBounds, Math.random() * 6 + 1.5)
             } else {
               if (shieldChargeRef.current > 0) {
                 shieldChargeRef.current -= 1
@@ -959,7 +1018,7 @@ export default function App() {
                 setHint('Комета сбила ракету. Улучши щит или манёвренность в магазине')
                 window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
               }
-              placeObstacle(obstacle, altitudeY + 7, Math.random() * 8)
+              placeObstacle(obstacle, rocket.position, playfieldBounds, Math.random() * 6 + 1.2)
             }
           }
         })
