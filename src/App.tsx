@@ -54,6 +54,15 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const MAX_UPGRADE_LEVEL = 5
 const STORAGE_KEY = '3d-raket-progress'
 const DEFAULT_UPGRADES: Upgrades = { engine: 0, maneuver: 0, shield: 0 }
+const KEYBOARD_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
+const PLAYER_BOUNDS = {
+  xGround: 2.45,
+  xSpace: 4.25,
+  yGround: 1.65,
+  ySpace: 2.45,
+  zGround: 0.45,
+  zSpace: 0.85,
+}
 const UPGRADE_LIST: UpgradeInfo[] = [
   {
     key: 'engine',
@@ -289,10 +298,16 @@ function createRocket() {
   const chromeMat = new THREE.MeshStandardMaterial({ color: '#d1d5db', metalness: 0.9, roughness: 0.14 })
   const darkChromeMat = new THREE.MeshStandardMaterial({ color: '#374151', metalness: 0.82, roughness: 0.2 })
   const flameMat = new THREE.MeshStandardMaterial({ color: '#f97316', emissive: '#fb923c', emissiveIntensity: 2.1, transparent: true, opacity: 0.92 })
+  const goldMat = new THREE.MeshStandardMaterial({ color: '#facc15', emissive: '#854d0e', emissiveIntensity: 0.18, metalness: 0.55, roughness: 0.26 })
 
   const firstStage = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 2.15, 64), whiteMat)
   firstStage.position.y = -0.28
   rocket.add(firstStage)
+
+  const bellyShadow = new THREE.Mesh(new THREE.CylinderGeometry(0.485, 0.56, 2.08, 64, 1, true, 0, Math.PI * 0.78), new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.36, roughness: 0.32 }))
+  bellyShadow.position.set(0, -0.29, -0.02)
+  bellyShadow.rotation.y = Math.PI * 0.61
+  rocket.add(bellyShadow)
 
   const upperStage = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 1.1, 64), whiteMat)
   upperStage.position.y = 1.18
@@ -322,6 +337,21 @@ function createRocket() {
   windowGlass.position.set(0, 1.35, 0.425)
   rocket.add(windowGlass)
 
+  const windowGlint = new THREE.Mesh(new THREE.CircleGeometry(0.045, 24), new THREE.MeshStandardMaterial({ color: '#f8fafc', emissive: '#bae6fd', emissiveIntensity: 0.8, transparent: true, opacity: 0.82 }))
+  windowGlint.position.set(-0.045, 1.39, 0.435)
+  rocket.add(windowGlint)
+
+  for (const angle of [Math.PI / 2, -Math.PI / 2]) {
+    const porthole = new THREE.Group()
+    const frame = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 12, 32), blackMat)
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.067, 32), blueMat)
+    glass.position.z = 0.018
+    porthole.add(frame, glass)
+    porthole.position.set(Math.sin(angle) * 0.485, 0.42, Math.cos(angle) * 0.485)
+    porthole.rotation.y = angle
+    rocket.add(porthole)
+  }
+
   for (const y of [0.92, 0.18, -0.58]) {
     const serviceLine = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.48, 0.018), chromeMat)
     serviceLine.position.set(0.5, y, 0.02)
@@ -342,6 +372,10 @@ function createRocket() {
     const boosterNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.25, 36), darkChromeMat)
     boosterNozzle.position.y = -1.7
     booster.add(boosterNozzle)
+
+    const boosterStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.205, 0.11, 40), redMat)
+    boosterStripe.position.y = -0.18
+    booster.add(boosterStripe)
 
     const clampTop = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.08), chromeMat)
     clampTop.position.set(-side * 0.21, 0.48, 0)
@@ -373,6 +407,11 @@ function createRocket() {
   engineMount.position.y = -1.48
   rocket.add(engineMount)
 
+  const heatShield = new THREE.Mesh(new THREE.TorusGeometry(0.39, 0.045, 16, 64), goldMat)
+  heatShield.position.y = -1.36
+  heatShield.rotation.x = Math.PI / 2
+  rocket.add(heatShield)
+
   const enginePositions = [
     [0, 0],
     [0.22, 0.16],
@@ -395,17 +434,102 @@ function createRocket() {
   return rocket
 }
 
-function createStars(count = 900) {
+function createStars(count = 900, spread = 70, ySpread = 120, color = '#e0f2fe', size = 0.06, opacity = 0.9) {
   const positions = new Float32Array(count * 3)
   for (let i = 0; i < count; i += 1) {
-    positions[i * 3] = (Math.random() - 0.5) * 70
-    positions[i * 3 + 1] = Math.random() * 120 - 20
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 70
+    positions[i * 3] = (Math.random() - 0.5) * spread
+    positions[i * 3 + 1] = Math.random() * ySpread - 20
+    positions[i * 3 + 2] = (Math.random() - 0.5) * spread
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  const material = new THREE.PointsMaterial({ color: '#e0f2fe', size: 0.06, transparent: true, opacity: 0.9 })
+  const material = new THREE.PointsMaterial({ color, size, transparent: true, opacity, sizeAttenuation: true })
   return new THREE.Points(geometry, material)
+}
+
+function createNebulaTexture(colorA: string, colorB: string) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const context = canvas.getContext('2d')
+  if (!context) return null
+
+  const gradient = context.createRadialGradient(128, 128, 8, 128, 128, 126)
+  gradient.addColorStop(0, colorA)
+  gradient.addColorStop(0.42, colorB)
+  gradient.addColorStop(1, 'rgba(2, 6, 23, 0)')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, 256, 256)
+
+  for (let i = 0; i < 70; i += 1) {
+    context.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.07})`
+    context.beginPath()
+    context.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 5, 0, Math.PI * 2)
+    context.fill()
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function createNebula(colorA: string, colorB: string) {
+  const texture = createNebulaTexture(colorA, colorB)
+  const material = new THREE.SpriteMaterial({
+    map: texture ?? undefined,
+    color: texture ? '#ffffff' : colorA,
+    transparent: true,
+    opacity: 0.38,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(18, 11, 1)
+  return sprite
+}
+
+function createDistantPlanet(color: string, emissive: string, radius: number, ring = false) {
+  const group = new THREE.Group()
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 48, 48),
+    new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.48, roughness: 0.68 }),
+  )
+  group.add(sphere)
+
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius * 1.05, 48, 48),
+    new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.75, transparent: true, opacity: 0.18, roughness: 1 }),
+  )
+  group.add(atmosphere)
+
+  if (ring) {
+    const planetRing = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 1.42, radius * 0.045, 12, 96),
+      new THREE.MeshStandardMaterial({ color: '#fde68a', emissive: '#a16207', emissiveIntensity: 0.38, transparent: true, opacity: 0.68 }),
+    )
+    planetRing.rotation.x = Math.PI / 2.6
+    planetRing.rotation.z = Math.PI / 8
+    group.add(planetRing)
+  }
+
+  return group
+}
+
+function createCometStreak() {
+  const group = new THREE.Group()
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 18, 18),
+    new THREE.MeshStandardMaterial({ color: '#fef3c7', emissive: '#f97316', emissiveIntensity: 1.9 }),
+  )
+  const tail = new THREE.Mesh(
+    new THREE.ConeGeometry(0.18, 2.7, 18),
+    new THREE.MeshStandardMaterial({ color: '#fbbf24', emissive: '#fb923c', emissiveIntensity: 1.7, transparent: true, opacity: 0.42 }),
+  )
+  tail.position.y = -1.3
+  tail.rotation.x = Math.PI
+  group.add(core, tail)
+  group.rotation.z = Math.PI / 5
+  return group
 }
 
 function createComet() {
@@ -472,6 +596,8 @@ export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const boostRef = useRef(false)
   const steerRef = useRef({ x: 0, y: 0 })
+  const keyboardRef = useRef({ x: 0, y: 0 })
+  const playerOffsetRef = useRef({ x: 0, y: 0, z: 0 })
   const phaseRef = useRef<GamePhase>('ready')
   const storyOpenRef = useRef(false)
   const shopOpenRef = useRef(false)
@@ -533,6 +659,46 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const pressed = new Set<string>()
+
+    const syncKeyboard = () => {
+      keyboardRef.current = {
+        x: Number(pressed.has('KeyD') || pressed.has('ArrowRight')) - Number(pressed.has('KeyA') || pressed.has('ArrowLeft')),
+        y: Number(pressed.has('KeyW') || pressed.has('ArrowUp')) - Number(pressed.has('KeyS') || pressed.has('ArrowDown')),
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!KEYBOARD_CODES.has(event.code)) return
+      event.preventDefault()
+      pressed.add(event.code)
+      syncKeyboard()
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (!KEYBOARD_CODES.has(event.code)) return
+      event.preventDefault()
+      pressed.delete(event.code)
+      syncKeyboard()
+    }
+
+    const clearKeyboard = () => {
+      pressed.clear()
+      syncKeyboard()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', clearKeyboard)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', clearKeyboard)
+    }
+  }, [])
+
+  useEffect(() => {
     upgradesRef.current = upgrades
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ coins, upgrades }))
@@ -557,16 +723,47 @@ export default function App() {
     renderer.outputColorSpace = THREE.SRGBColorSpace
     mount.appendChild(renderer.domElement)
 
-    const ambient = new THREE.AmbientLight('#93c5fd', 0.75)
+    const ambient = new THREE.AmbientLight('#93c5fd', 0.86)
     scene.add(ambient)
     const sun = new THREE.DirectionalLight('#ffffff', 2.4)
     sun.position.set(6, 8, 6)
     scene.add(sun)
+    const rimLight = new THREE.DirectionalLight('#a78bfa', 1.2)
+    rimLight.position.set(-7, 5, -4)
+    scene.add(rimLight)
     const engineLight = new THREE.PointLight('#fb923c', 3, 8)
     scene.add(engineLight)
 
-    const stars = createStars()
-    scene.add(stars)
+    const nearStars = createStars(950, 70, 120, '#f8fafc', 0.052, 0.92)
+    const midStars = createStars(1250, 120, 170, '#bfdbfe', 0.04, 0.62)
+    const farStars = createStars(1700, 210, 230, '#c4b5fd', 0.025, 0.45)
+    scene.add(nearStars, midStars, farStars)
+
+    const nebulaA = createNebula('rgba(168, 85, 247, 0.56)', 'rgba(14, 165, 233, 0.24)')
+    nebulaA.position.set(-11, 24, -22)
+    scene.add(nebulaA)
+    const nebulaB = createNebula('rgba(20, 184, 166, 0.42)', 'rgba(244, 114, 182, 0.2)')
+    nebulaB.position.set(12, 58, -28)
+    nebulaB.scale.set(22, 13, 1)
+    scene.add(nebulaB)
+
+    const distantPlanets = [
+      createDistantPlanet('#7dd3fc', '#075985', 1.25),
+      createDistantPlanet('#fda4af', '#881337', 0.88, true),
+      createDistantPlanet('#fef08a', '#854d0e', 0.62),
+    ]
+    distantPlanets[0].position.set(-8, 18, -15)
+    distantPlanets[1].position.set(9, 45, -21)
+    distantPlanets[2].position.set(-12, 76, -18)
+    distantPlanets.forEach((planet) => scene.add(planet))
+
+    const cometStreaks = Array.from({ length: 4 }, (_, index) => {
+      const streak = createCometStreak()
+      streak.position.set((Math.random() - 0.5) * 24, 26 + index * 23, -13 - Math.random() * 12)
+      streak.scale.setScalar(0.75 + Math.random() * 0.55)
+      scene.add(streak)
+      return streak
+    })
 
     const earth = new THREE.Mesh(
       new THREE.SphereGeometry(5.8, 64, 64),
@@ -621,6 +818,7 @@ export default function App() {
     let animationId = 0
     let avoided = 0
     let dangerStartedAt = Number.POSITIVE_INFINITY
+    const targetScaleVector = new THREE.Vector3(1, 1, 1)
 
     const showPlanetStory = (planet: PlanetInfo) => {
       if (storyOpenRef.current) return
@@ -641,6 +839,7 @@ export default function App() {
       const active = !paused && (phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger')
       const dangerMode = !paused && phaseRef.current === 'danger'
       const boost = boostRef.current || phaseRef.current === 'space' || dangerMode
+      const altitudeY = -0.35 + altitudeValue * 0.18
 
       if (active) {
         const currentUpgrades = upgradesRef.current
@@ -653,16 +852,47 @@ export default function App() {
         flightTimeValue += delta
 
         const targetScale = altitudeValue >= 100 ? 0.52 : 1
-        rocket.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.055)
-        rocket.position.y = -0.35 + altitudeValue * 0.18
-        rocket.position.x = steerRef.current.x * (dangerMode ? 2.75 : 1.8) * maneuverBonus
-        rocket.position.z = steerRef.current.y * (dangerMode ? 1.35 : 0.35) * (1 + currentUpgrades.maneuver * 0.08)
-        rocket.rotation.z = -steerRef.current.x * (dangerMode ? 0.55 : 0.35) * maneuverBonus
-        rocket.rotation.x = steerRef.current.y * (dangerMode ? 0.34 : 0.18) * (1 + currentUpgrades.maneuver * 0.08)
+        targetScaleVector.set(targetScale, targetScale, targetScale)
+        rocket.scale.lerp(targetScaleVector, 0.055)
+        const visibleHalfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * camera.position.z
+        const visibleHalfWidth = visibleHalfHeight * camera.aspect
+        const xBound = Math.max(0.9, Math.min(dangerMode ? PLAYER_BOUNDS.xSpace : PLAYER_BOUNDS.xGround, visibleHalfWidth - 0.72 * targetScale))
+        const yBound = Math.max(0.85, Math.min(dangerMode ? PLAYER_BOUNDS.ySpace : PLAYER_BOUNDS.yGround, visibleHalfHeight - 1.45 * targetScale))
+        const zBound = (dangerMode ? PLAYER_BOUNDS.zSpace : PLAYER_BOUNDS.zGround) * (1 + currentUpgrades.maneuver * 0.04)
+        const keyboard = keyboardRef.current
+        const keyboardActive = keyboard.x !== 0 || keyboard.y !== 0
+        const offset = playerOffsetRef.current
 
-        camera.position.y += ((rocket.position.y + 2.2) - camera.position.y) * 0.035
+        if (keyboardActive) {
+          const keyboardSpeed = (dangerMode ? 4.9 : 3.35) * maneuverBonus
+          const verticalKeyboardSpeed = (dangerMode ? 4.25 : 3.05) * maneuverBonus
+          offset.x = clamp(offset.x + keyboard.x * keyboardSpeed * delta, -xBound, xBound)
+          offset.y = clamp(offset.y + keyboard.y * verticalKeyboardSpeed * delta, -yBound, yBound)
+          offset.z = clamp(-offset.y * 0.2, -zBound, zBound)
+          steerRef.current = { x: offset.x / xBound, y: -offset.y / yBound }
+        } else {
+          const targetX = steerRef.current.x * xBound
+          const targetY = -steerRef.current.y * yBound
+          const targetZ = clamp(-targetY * 0.2, -zBound, zBound)
+          offset.x += (targetX - offset.x) * (dangerMode ? 0.28 : 0.18)
+          offset.y += (targetY - offset.y) * (dangerMode ? 0.28 : 0.18)
+          offset.z += (targetZ - offset.z) * (dangerMode ? 0.28 : 0.18)
+        }
+
+        offset.x = clamp(offset.x, -xBound, xBound)
+        offset.y = clamp(offset.y, -yBound, yBound)
+        offset.z = clamp(offset.z, -zBound, zBound)
+        const normalizedX = xBound === 0 ? 0 : offset.x / xBound
+        const normalizedY = yBound === 0 ? 0 : offset.y / yBound
+        rocket.position.x = offset.x
+        rocket.position.y = altitudeY + offset.y
+        rocket.position.z = offset.z
+        rocket.rotation.z = -normalizedX * (dangerMode ? 0.65 : 0.42) * maneuverBonus
+        rocket.rotation.x = normalizedY * (dangerMode ? 0.42 : 0.22) * (1 + currentUpgrades.maneuver * 0.08)
+
+        camera.position.y += (altitudeY + 2.2 + offset.y * 0.16 - camera.position.y) * 0.035
         camera.position.x += (rocket.position.x * 0.35 - camera.position.x) * 0.04
-        camera.lookAt(rocket.position.x * 0.4, rocket.position.y + 0.25, 0)
+        camera.lookAt(rocket.position.x * 0.4, altitudeY + 0.25 + offset.y * 0.12, 0)
 
         if (altitudeValue > 95 && phaseRef.current === 'flying') {
           setGamePhase('space')
@@ -677,7 +907,7 @@ export default function App() {
           window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
           obstacles.forEach((obstacle, index) => {
             obstacle.group.visible = true
-            placeObstacle(obstacle, rocket.position.y, index)
+            placeObstacle(obstacle, altitudeY, index)
           })
         }
       } else if (phaseRef.current === 'crashed') {
@@ -698,7 +928,7 @@ export default function App() {
           obstacle.group.rotation.x += delta * obstacle.spin
           obstacle.group.rotation.y += delta * obstacle.spin * 0.75
 
-          const passedRocket = obstacle.group.position.y < rocket.position.y - 4
+          const passedRocket = obstacle.group.position.y < altitudeY - 4
           if (passedRocket) {
             avoided += 1
             setDangerScore(avoided)
@@ -706,7 +936,7 @@ export default function App() {
               setCoins((current) => current + 1)
               setHint('Чистый пролёт мимо кометы: +1 монета')
             }
-            placeObstacle(obstacle, rocket.position.y + 6, Math.random() * 8)
+            placeObstacle(obstacle, altitudeY + 6, Math.random() * 8)
           }
 
           const distance = obstacle.group.position.distanceTo(rocket.position)
@@ -716,7 +946,7 @@ export default function App() {
               showPlanetStory(obstacle.planet)
               avoided += 1
               setDangerScore(avoided)
-              placeObstacle(obstacle, rocket.position.y + 9, Math.random() * 8)
+              placeObstacle(obstacle, altitudeY + 9, Math.random() * 8)
             } else {
               if (shieldChargeRef.current > 0) {
                 shieldChargeRef.current -= 1
@@ -729,7 +959,7 @@ export default function App() {
                 setHint('Комета сбила ракету. Улучши щит или манёвренность в магазине')
                 window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
               }
-              placeObstacle(obstacle, rocket.position.y + 7, Math.random() * 8)
+              placeObstacle(obstacle, altitudeY + 7, Math.random() * 8)
             }
           }
         })
@@ -757,7 +987,28 @@ export default function App() {
         }
       })
 
-      stars.rotation.y += delta * (dangerMode ? 0.04 : 0.012)
+      nearStars.rotation.y += delta * (dangerMode ? 0.048 : 0.014)
+      midStars.rotation.y -= delta * (dangerMode ? 0.022 : 0.007)
+      farStars.rotation.y += delta * 0.004
+      const sceneryY = -0.35 + altitudeValue * 0.18
+      nebulaA.position.y = sceneryY + 15 + Math.sin(frame * 0.14) * 1.6
+      nebulaB.position.y = sceneryY + 39 + Math.cos(frame * 0.11) * 1.8
+      nebulaA.material.opacity = altitudeValue > 55 ? 0.42 : 0.18
+      nebulaB.material.opacity = altitudeValue > 85 ? 0.38 : 0.12
+      distantPlanets.forEach((planet, index) => {
+        planet.rotation.y += delta * (0.05 + index * 0.025)
+        if (planet.position.y < sceneryY - 18) {
+          planet.position.y = sceneryY + 62 + index * 24
+          planet.position.x = (index % 2 === 0 ? -1 : 1) * (7 + Math.random() * 6)
+        }
+      })
+      cometStreaks.forEach((streak, index) => {
+        streak.position.x += delta * (0.8 + index * 0.18)
+        streak.position.y -= delta * (1.9 + index * 0.28)
+        if (streak.position.y < sceneryY - 16 || streak.position.x > 15) {
+          streak.position.set(-14 - Math.random() * 8, sceneryY + 42 + Math.random() * 52, -13 - Math.random() * 13)
+        }
+      })
       earth.rotation.y += delta * 0.035
       pad.visible = altitudeValue < 28
       earth.position.y = -7 - altitudeValue * 0.045
@@ -793,10 +1044,12 @@ export default function App() {
 
   const start = () => {
     boostRef.current = true
+    playerOffsetRef.current = { x: 0, y: 0, z: 0 }
+    steerRef.current = { x: 0, y: 0 }
     shieldChargeRef.current = upgradesRef.current.shield > 0 ? 1 : 0
     setShieldCharge(shieldChargeRef.current)
     setGamePhase('flying')
-    setHint('Держи ускорение и веди пальцем, чтобы стабилизировать полёт')
+    setHint('Держи ускорение и веди ракету по экрану пальцем или WASD/стрелками')
     window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
   }
 
@@ -854,6 +1107,10 @@ export default function App() {
           <span>{phase === 'danger' || phase === 'crashed' ? 'Уклонения' : 'Скорость'}</span>
           <strong>{phase === 'danger' || phase === 'crashed' ? dangerScore : `${speed} км/ч`}</strong>
         </div>
+      </section>
+
+      <section className="hud keyboard-help" aria-label="Подсказка управления с клавиатуры">
+        <span>Клавиатура: WASD/стрелки двигают по экрану</span>
       </section>
 
       {phase === 'danger' && (
