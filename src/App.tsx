@@ -264,6 +264,7 @@ export default function App() {
     let frame = 0
     let animationId = 0
     let avoided = 0
+    let dangerStartedAt = Number.POSITIVE_INFINITY
 
     const crash = () => {
       if (phaseRef.current === 'crashed') return
@@ -308,6 +309,7 @@ export default function App() {
 
         if (altitudeValue >= 100 && phaseRef.current !== 'danger') {
           setGamePhase('danger')
+          dangerStartedAt = frame
           setHint('1000 км! Ракета стала меньше. Облетай кометы и космических монстров')
           window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
           obstacles.forEach((obstacle, index) => {
@@ -328,7 +330,7 @@ export default function App() {
 
       if (dangerMode) {
         obstacles.forEach((obstacle) => {
-          obstacle.group.position.y -= (2.8 + velocity * 0.18) * delta
+          obstacle.group.position.y -= (1.6 + velocity * 0.11) * delta
           obstacle.group.position.x += Math.sin(frame * 1.5 + obstacle.spin) * obstacle.drift * delta
           obstacle.group.rotation.x += delta * obstacle.spin
           obstacle.group.rotation.y += delta * obstacle.spin * 0.75
@@ -341,7 +343,8 @@ export default function App() {
           }
 
           const distance = obstacle.group.position.distanceTo(rocket.position)
-          if (distance < obstacle.radius + 0.42) {
+          const graceOver = frame - dangerStartedAt > 5
+          if (graceOver && distance < obstacle.radius + 0.34) {
             crash()
           }
         })
