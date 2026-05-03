@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { RotateCcw, Rocket, ShieldAlert, Zap } from 'lucide-react'
+import { Globe2, RotateCcw, Rocket, ShieldAlert, Zap } from 'lucide-react'
 import './App.css'
 
 declare global {
@@ -24,16 +24,71 @@ declare global {
 }
 
 type GamePhase = 'ready' | 'flying' | 'space' | 'danger' | 'crashed'
-type ObstacleKind = 'comet' | 'monster'
+type ObstacleKind = 'comet' | 'planet'
+type PlanetInfo = {
+  name: string
+  color: string
+  emissive: string
+  story: string
+  hasRing?: boolean
+}
 type Obstacle = {
   group: THREE.Group
   kind: ObstacleKind
   radius: number
   drift: number
   spin: number
+  planet?: PlanetInfo
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const PLANETS: PlanetInfo[] = [
+  {
+    name: 'Меркурий',
+    color: '#a3a3a3',
+    emissive: '#27272a',
+    story: 'Меркурий — самая близкая к Солнцу планета. У него почти нет атмосферы, поэтому днём поверхность раскаляется, а ночью резко остывает.',
+  },
+  {
+    name: 'Венера',
+    color: '#facc15',
+    emissive: '#78350f',
+    story: 'Венера похожа на Землю размером, но покрыта плотными облаками серной кислоты. Это самая горячая планета Солнечной системы.',
+  },
+  {
+    name: 'Марс',
+    color: '#ef4444',
+    emissive: '#7f1d1d',
+    story: 'Марс называют Красной планетой из-за оксида железа в грунте. На нём есть огромный вулкан Олимп и следы древней воды.',
+  },
+  {
+    name: 'Юпитер',
+    color: '#f97316',
+    emissive: '#7c2d12',
+    story: 'Юпитер — крупнейшая планета Солнечной системы. Его Большое красное пятно — гигантский шторм, который бушует уже сотни лет.',
+  },
+  {
+    name: 'Сатурн',
+    color: '#fde68a',
+    emissive: '#78350f',
+    hasRing: true,
+    story: 'Сатурн знаменит яркими кольцами из льда и каменной пыли. Это газовый гигант, настолько лёгкий, что теоретически мог бы плавать в воде.',
+  },
+  {
+    name: 'Уран',
+    color: '#67e8f9',
+    emissive: '#164e63',
+    story: 'Уран вращается почти лёжа на боку. Его голубой цвет связан с метаном в атмосфере, который поглощает красный свет.',
+  },
+  {
+    name: 'Нептун',
+    color: '#2563eb',
+    emissive: '#1e3a8a',
+    story: 'Нептун — далёкий ледяной гигант с очень сильными ветрами. Это самая дальняя большая планета от Солнца.',
+  },
+]
+
 
 function createRocket() {
   const rocket = new THREE.Group()
@@ -123,39 +178,36 @@ function createComet() {
   return group
 }
 
-function createMonster() {
+
+function createPlanet(planet: PlanetInfo) {
   const group = new THREE.Group()
-  group.name = 'monster'
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#8b5cf6', emissive: '#4c1d95', emissiveIntensity: 0.55, roughness: 0.45 })
-  const eyeMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', emissive: '#ffffff', emissiveIntensity: 0.35 })
-  const pupilMat = new THREE.MeshStandardMaterial({ color: '#020617' })
-  const toothMat = new THREE.MeshStandardMaterial({ color: '#fef3c7' })
+  group.name = `planet-${planet.name}`
+  const material = new THREE.MeshStandardMaterial({
+    color: planet.color,
+    emissive: planet.emissive,
+    emissiveIntensity: 0.42,
+    roughness: 0.62,
+    metalness: 0.05,
+  })
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.76, 42, 42), material)
+  group.add(sphere)
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.68, 32, 32), bodyMat)
-  group.add(body)
-
-  for (const x of [-0.24, 0.24]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 18), eyeMat)
-    eye.position.set(x, 0.16, 0.58)
-    group.add(eye)
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), pupilMat)
-    pupil.position.set(x, 0.14, 0.7)
-    group.add(pupil)
+  const lineMat = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.18 })
+  for (const y of [-0.28, 0, 0.28]) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.77, 0.012, 8, 80), lineMat.clone())
+    band.rotation.x = Math.PI / 2
+    band.position.y = y
+    group.add(band)
   }
 
-  for (const x of [-0.26, 0, 0.26]) {
-    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 10), toothMat)
-    tooth.position.set(x, -0.34, 0.62)
-    tooth.rotation.x = Math.PI
-    group.add(tooth)
-  }
-
-  for (let i = 0; i < 7; i += 1) {
-    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.38, 10), bodyMat)
-    const angle = (i / 7) * Math.PI * 2
-    spike.position.set(Math.sin(angle) * 0.62, Math.cos(angle) * 0.62, -0.06)
-    spike.rotation.z = -angle
-    group.add(spike)
+  if (planet.hasRing) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(1.08, 0.055, 12, 96),
+      new THREE.MeshStandardMaterial({ color: '#fde68a', emissive: '#92400e', emissiveIntensity: 0.38, transparent: true, opacity: 0.82 }),
+    )
+    ring.rotation.x = Math.PI / 2.8
+    ring.rotation.z = Math.PI / 7
+    group.add(ring)
   }
 
   return group
@@ -175,6 +227,7 @@ export default function App() {
   const [altitude, setAltitude] = useState(0)
   const [speed, setSpeed] = useState(0)
   const [dangerScore, setDangerScore] = useState(0)
+  const [planetStory, setPlanetStory] = useState<PlanetInfo | null>(null)
   const [hint, setHint] = useState('Нажми СТАРТ и удерживай ускорение')
 
   const setGamePhase = (next: GamePhase) => {
@@ -235,16 +288,18 @@ export default function App() {
     const flame = rocket.getObjectByName('flame') as THREE.Mesh | undefined
 
     const obstacles: Obstacle[] = Array.from({ length: 12 }, (_, index) => {
-      const kind: ObstacleKind = index % 3 === 0 ? 'monster' : 'comet'
-      const group = kind === 'monster' ? createMonster() : createComet()
+      const kind: ObstacleKind = index % 3 === 0 ? 'planet' : 'comet'
+      const planet = kind === 'planet' ? PLANETS[(index / 3) % PLANETS.length | 0] : undefined
+      const group = kind === 'planet' && planet ? createPlanet(planet) : createComet()
       group.visible = false
       scene.add(group)
       return {
         group,
         kind,
-        radius: kind === 'monster' ? 0.82 : 0.72,
+        radius: kind === 'planet' ? 0.9 : 0.72,
         drift: (Math.random() - 0.5) * 0.9,
         spin: 0.8 + Math.random() * 1.8,
+        planet,
       }
     })
 
@@ -266,12 +321,18 @@ export default function App() {
     let avoided = 0
     let dangerStartedAt = Number.POSITIVE_INFINITY
 
-    const crash = () => {
+    const crash = (planet?: PlanetInfo) => {
       if (phaseRef.current === 'crashed') return
       velocity = 0
       boostRef.current = false
       setGamePhase('crashed')
-      setHint('Столкновение! Нажми кнопку сброса и попробуй снова')
+      if (planet) {
+        setPlanetStory(planet)
+        setHint(`Столкновение с планетой ${planet.name}! Прочитай рассказ и начни заново`)
+      } else {
+        setPlanetStory(null)
+        setHint('Столкновение с кометой! Нажми кнопку сброса и попробуй снова')
+      }
       window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
     }
 
@@ -310,7 +371,7 @@ export default function App() {
         if (altitudeValue >= 100 && phaseRef.current !== 'danger') {
           setGamePhase('danger')
           dangerStartedAt = frame
-          setHint('1000 км! Ракета стала меньше. Облетай кометы и космических монстров')
+          setHint('1000 км! Ракета стала меньше. Облетай кометы и настоящие планеты')
           window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
           obstacles.forEach((obstacle, index) => {
             obstacle.group.visible = true
@@ -345,7 +406,7 @@ export default function App() {
           const distance = obstacle.group.position.distanceTo(rocket.position)
           const graceOver = frame - dangerStartedAt > 5
           if (graceOver && distance < obstacle.radius + 0.34) {
-            crash()
+            crash(obstacle.kind === 'planet' ? obstacle.planet : undefined)
           }
         })
       }
@@ -454,7 +515,21 @@ export default function App() {
 
       {phase === 'danger' && (
         <section className="danger-banner">
-          <ShieldAlert size={17} /> Кометы и монстры впереди — веди ракету пальцем
+          <ShieldAlert size={17} /> Кометы и планеты впереди — веди ракету пальцем
+        </section>
+      )}
+
+
+      {planetStory && (
+        <section className="planet-modal" role="dialog" aria-label={`Рассказ о планете ${planetStory.name}`}>
+          <div className="planet-card">
+            <div className="planet-card-title">
+              <Globe2 size={22} />
+              <span>Планета: {planetStory.name}</span>
+            </div>
+            <p>{planetStory.story}</p>
+            <button className="planet-card-button" onClick={reset}>Полететь снова</button>
+          </div>
         </section>
       )}
 

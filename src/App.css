@@ -250,6 +250,57 @@ h1 {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.45);
 }
 
+
+.planet-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: radial-gradient(circle at 50% 35%, rgba(59, 130, 246, 0.18), rgba(2, 6, 23, 0.78));
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.planet-card {
+  width: min(92vw, 420px);
+  padding: 20px;
+  border: 1px solid rgba(147, 197, 253, 0.34);
+  border-radius: 28px;
+  color: #eff6ff;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.86));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+}
+
+.planet-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #bfdbfe;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.planet-card p {
+  margin: 0 0 16px;
+  color: #dbeafe;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.planet-card-button {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 950;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.34);
+}
+
 @media (max-height: 680px) {
   .meters {
     top: calc(max(16px, env(safe-area-inset-top)) + 62px);
