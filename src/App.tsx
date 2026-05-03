@@ -222,51 +222,114 @@ function createRocket() {
   const rocket = new THREE.Group()
   rocket.name = 'rocket'
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#f7fafc', metalness: 0.45, roughness: 0.28 })
-  const redMat = new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.25, roughness: 0.32 })
-  const blueMat = new THREE.MeshStandardMaterial({ color: '#60a5fa', emissive: '#1d4ed8', emissiveIntensity: 0.35 })
-  const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.5, roughness: 0.35 })
-  const flameMat = new THREE.MeshStandardMaterial({ color: '#f97316', emissive: '#fb923c', emissiveIntensity: 1.8, transparent: true, opacity: 0.92 })
+  const whiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', metalness: 0.42, roughness: 0.22 })
+  const blackMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.45, roughness: 0.28 })
+  const orangeMat = new THREE.MeshStandardMaterial({ color: '#f97316', emissive: '#7c2d12', emissiveIntensity: 0.18, metalness: 0.18, roughness: 0.34 })
+  const redMat = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#7f1d1d', emissiveIntensity: 0.12, metalness: 0.18, roughness: 0.32 })
+  const blueMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0284c7', emissiveIntensity: 0.42, metalness: 0.15, roughness: 0.12 })
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#d1d5db', metalness: 0.9, roughness: 0.14 })
+  const darkChromeMat = new THREE.MeshStandardMaterial({ color: '#374151', metalness: 0.82, roughness: 0.2 })
+  const flameMat = new THREE.MeshStandardMaterial({ color: '#f97316', emissive: '#fb923c', emissiveIntensity: 2.1, transparent: true, opacity: 0.92 })
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 2.8, 48), bodyMat)
-  body.position.y = 0
-  rocket.add(body)
+  const firstStage = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 2.15, 64), whiteMat)
+  firstStage.position.y = -0.28
+  rocket.add(firstStage)
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.9, 48), redMat)
-  nose.position.y = 1.85
+  const upperStage = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 1.1, 64), whiteMat)
+  upperStage.position.y = 1.18
+  rocket.add(upperStage)
+
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.39, 0.82, 64), redMat)
+  nose.position.y = 2.15
   rocket.add(nose)
 
-  const windowFrame = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.045, 16, 48), darkMat)
-  windowFrame.position.set(0, 0.75, 0.47)
+  const interstage = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 64), blackMat)
+  interstage.position.y = 0.55
+  rocket.add(interstage)
+
+  const lowerBand = new THREE.Mesh(new THREE.CylinderGeometry(0.585, 0.6, 0.13, 64), blackMat)
+  lowerBand.position.y = -1.25
+  rocket.add(lowerBand)
+
+  const tankBand = new THREE.Mesh(new THREE.CylinderGeometry(0.505, 0.505, 0.055, 64), chromeMat)
+  tankBand.position.y = -0.05
+  rocket.add(tankBand)
+
+  const windowFrame = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 16, 48), blackMat)
+  windowFrame.position.set(0, 1.35, 0.385)
   rocket.add(windowFrame)
 
-  const windowGlass = new THREE.Mesh(new THREE.CircleGeometry(0.18, 48), blueMat)
-  windowGlass.position.set(0, 0.75, 0.522)
+  const windowGlass = new THREE.Mesh(new THREE.CircleGeometry(0.135, 48), blueMat)
+  windowGlass.position.set(0, 1.35, 0.425)
   rocket.add(windowGlass)
 
-  const finShape = new THREE.Shape()
-  finShape.moveTo(0, 0)
-  finShape.lineTo(0.7, -0.9)
-  finShape.lineTo(0.16, -0.72)
-  finShape.lineTo(0, 0)
-  const finGeom = new THREE.ExtrudeGeometry(finShape, { depth: 0.08, bevelEnabled: false })
+  for (const y of [0.92, 0.18, -0.58]) {
+    const serviceLine = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.48, 0.018), chromeMat)
+    serviceLine.position.set(0.5, y, 0.02)
+    serviceLine.rotation.z = -0.03
+    rocket.add(serviceLine)
+  }
+
+  for (const side of [-1, 1]) {
+    const booster = new THREE.Group()
+    const boosterBody = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.35, 40), whiteMat)
+    boosterBody.position.y = -0.42
+    booster.add(boosterBody)
+
+    const boosterNose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.46, 40), orangeMat)
+    boosterNose.position.y = 0.98
+    booster.add(boosterNose)
+
+    const boosterNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.25, 36), darkChromeMat)
+    boosterNozzle.position.y = -1.7
+    booster.add(boosterNozzle)
+
+    const clampTop = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.08), chromeMat)
+    clampTop.position.set(-side * 0.21, 0.48, 0)
+    booster.add(clampTop)
+
+    const clampBottom = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.08), chromeMat)
+    clampBottom.position.set(-side * 0.21, -0.85, 0)
+    booster.add(clampBottom)
+
+    booster.position.set(side * 0.72, -0.35, 0)
+    rocket.add(booster)
+  }
 
   for (const angle of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) {
-    const fin = new THREE.Mesh(finGeom, redMat)
-    fin.position.y = -1.0
+    const finShape = new THREE.Shape()
+    finShape.moveTo(0, 0.18)
+    finShape.lineTo(0.44, -0.52)
+    finShape.lineTo(0.11, -0.45)
+    finShape.lineTo(0, 0.18)
+    const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.012, bevelSegments: 2 }), redMat)
+    fin.position.y = -1.28
     fin.rotation.y = angle
-    fin.position.x = Math.sin(angle) * 0.42
-    fin.position.z = Math.cos(angle) * 0.42
+    fin.position.x = Math.sin(angle) * 0.52
+    fin.position.z = Math.cos(angle) * 0.52
     rocket.add(fin)
   }
 
-  const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.32, 36), darkMat)
-  engine.position.y = -1.55
-  rocket.add(engine)
+  const engineMount = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.24, 64), darkChromeMat)
+  engineMount.position.y = -1.48
+  rocket.add(engineMount)
+
+  const enginePositions = [
+    [0, 0],
+    [0.22, 0.16],
+    [-0.22, 0.16],
+    [0.22, -0.16],
+    [-0.22, -0.16],
+  ] as const
+  enginePositions.forEach(([x, z], index) => {
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, index === 0 ? 0.17 : 0.13, 0.34, 32), blackMat)
+    nozzle.position.set(x, -1.72, z)
+    rocket.add(nozzle)
+  })
 
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.25, 36), flameMat)
   flame.name = 'flame'
-  flame.position.y = -2.25
+  flame.position.y = -2.35
   flame.rotation.x = Math.PI
   rocket.add(flame)
 
@@ -412,7 +475,7 @@ export default function App() {
     scene.add(pad)
 
     const rocket = createRocket()
-    rocket.position.y = -0.75
+    rocket.position.y = -0.35
     scene.add(rocket)
     const flame = rocket.getObjectByName('flame') as THREE.Mesh | undefined
 
@@ -477,7 +540,7 @@ export default function App() {
 
         const targetScale = altitudeValue >= 100 ? 0.52 : 1
         rocket.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.055)
-        rocket.position.y = -0.75 + altitudeValue * 0.18
+        rocket.position.y = -0.35 + altitudeValue * 0.18
         rocket.position.x = steerRef.current.x * (dangerMode ? 2.75 : 1.8)
         rocket.position.z = steerRef.current.y * (dangerMode ? 1.35 : 0.35)
         rocket.rotation.z = -steerRef.current.x * (dangerMode ? 0.55 : 0.35)
