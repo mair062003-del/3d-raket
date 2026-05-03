@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { RotateCcw, Rocket, Zap } from 'lucide-react'
+import { RotateCcw, Rocket, ShieldAlert, Zap } from 'lucide-react'
 import './App.css'
 
 declare global {
@@ -23,7 +23,15 @@ declare global {
   }
 }
 
-type GamePhase = 'ready' | 'flying' | 'space'
+type GamePhase = 'ready' | 'flying' | 'space' | 'danger' | 'crashed'
+type ObstacleKind = 'comet' | 'monster'
+type Obstacle = {
+  group: THREE.Group
+  kind: ObstacleKind
+  radius: number
+  drift: number
+  spin: number
+}
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
@@ -95,6 +103,69 @@ function createStars(count = 900) {
   return new THREE.Points(geometry, material)
 }
 
+function createComet() {
+  const group = new THREE.Group()
+  group.name = 'comet'
+  const core = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.54, 1),
+    new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#7c2d12', emissiveIntensity: 0.55, roughness: 0.8 }),
+  )
+  group.add(core)
+
+  const tailMat = new THREE.MeshStandardMaterial({ color: '#fb923c', emissive: '#f97316', emissiveIntensity: 1.5, transparent: true, opacity: 0.74 })
+  for (let i = 0; i < 3; i += 1) {
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.18 + i * 0.05, 1.8 + i * 0.32, 18), tailMat.clone())
+    tail.position.set((i - 1) * 0.16, -0.85 - i * 0.18, -0.18 * i)
+    tail.rotation.x = Math.PI
+    group.add(tail)
+  }
+
+  return group
+}
+
+function createMonster() {
+  const group = new THREE.Group()
+  group.name = 'monster'
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#8b5cf6', emissive: '#4c1d95', emissiveIntensity: 0.55, roughness: 0.45 })
+  const eyeMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', emissive: '#ffffff', emissiveIntensity: 0.35 })
+  const pupilMat = new THREE.MeshStandardMaterial({ color: '#020617' })
+  const toothMat = new THREE.MeshStandardMaterial({ color: '#fef3c7' })
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.68, 32, 32), bodyMat)
+  group.add(body)
+
+  for (const x of [-0.24, 0.24]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 18), eyeMat)
+    eye.position.set(x, 0.16, 0.58)
+    group.add(eye)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), pupilMat)
+    pupil.position.set(x, 0.14, 0.7)
+    group.add(pupil)
+  }
+
+  for (const x of [-0.26, 0, 0.26]) {
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 10), toothMat)
+    tooth.position.set(x, -0.34, 0.62)
+    tooth.rotation.x = Math.PI
+    group.add(tooth)
+  }
+
+  for (let i = 0; i < 7; i += 1) {
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.38, 10), bodyMat)
+    const angle = (i / 7) * Math.PI * 2
+    spike.position.set(Math.sin(angle) * 0.62, Math.cos(angle) * 0.62, -0.06)
+    spike.rotation.z = -angle
+    group.add(spike)
+  }
+
+  return group
+}
+
+function placeObstacle(obstacle: Obstacle, rocketY: number, index: number) {
+  obstacle.group.position.set((Math.random() - 0.5) * 5.2, rocketY + 8 + index * 4.5 + Math.random() * 20, (Math.random() - 0.5) * 1.8)
+  obstacle.group.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
+}
+
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const boostRef = useRef(false)
@@ -103,6 +174,7 @@ export default function App() {
   const [phase, setPhase] = useState<GamePhase>('ready')
   const [altitude, setAltitude] = useState(0)
   const [speed, setSpeed] = useState(0)
+  const [dangerScore, setDangerScore] = useState(0)
   const [hint, setHint] = useState('Нажми СТАРТ и удерживай ускорение')
 
   const setGamePhase = (next: GamePhase) => {
@@ -162,6 +234,20 @@ export default function App() {
     scene.add(rocket)
     const flame = rocket.getObjectByName('flame') as THREE.Mesh | undefined
 
+    const obstacles: Obstacle[] = Array.from({ length: 12 }, (_, index) => {
+      const kind: ObstacleKind = index % 3 === 0 ? 'monster' : 'comet'
+      const group = kind === 'monster' ? createMonster() : createComet()
+      group.visible = false
+      scene.add(group)
+      return {
+        group,
+        kind,
+        radius: kind === 'monster' ? 0.82 : 0.72,
+        drift: (Math.random() - 0.5) * 0.9,
+        spin: 0.8 + Math.random() * 1.8,
+      }
+    })
+
     const smokeParticles: THREE.Mesh[] = []
     const smokeMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.22, roughness: 1 })
     for (let i = 0; i < 28; i += 1) {
@@ -177,33 +263,62 @@ export default function App() {
     let lastTime = performance.now()
     let frame = 0
     let animationId = 0
+    let avoided = 0
+
+    const crash = () => {
+      if (phaseRef.current === 'crashed') return
+      velocity = 0
+      boostRef.current = false
+      setGamePhase('crashed')
+      setHint('Столкновение! Нажми кнопку сброса и попробуй снова')
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
+    }
 
     const animate = (now: number) => {
       const delta = Math.min((now - lastTime) / 1000, 0.033)
       lastTime = now
       frame += delta
 
-      const active = phaseRef.current === 'flying' || phaseRef.current === 'space'
-      const boost = boostRef.current || phaseRef.current === 'space'
+      const active = phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger'
+      const dangerMode = phaseRef.current === 'danger'
+      const boost = boostRef.current || phaseRef.current === 'space' || dangerMode
 
       if (active) {
-        const acceleration = boost ? 7.4 : 2.3
-        velocity = clamp(velocity + acceleration * delta, 0, 18)
+        const acceleration = boost ? (dangerMode ? 4.6 : 7.4) : 2.3
+        velocity = clamp(velocity + acceleration * delta, 0, dangerMode ? 24 : 18)
         altitudeValue += velocity * delta
+
+        const targetScale = altitudeValue >= 100 ? 0.52 : 1
+        rocket.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.055)
         rocket.position.y = -0.75 + altitudeValue * 0.18
-        rocket.position.x = steerRef.current.x * 1.8
-        rocket.rotation.z = -steerRef.current.x * 0.35
-        rocket.rotation.x = steerRef.current.y * 0.18
+        rocket.position.x = steerRef.current.x * (dangerMode ? 2.75 : 1.8)
+        rocket.position.z = steerRef.current.y * (dangerMode ? 1.35 : 0.35)
+        rocket.rotation.z = -steerRef.current.x * (dangerMode ? 0.55 : 0.35)
+        rocket.rotation.x = steerRef.current.y * (dangerMode ? 0.34 : 0.18)
 
         camera.position.y += ((rocket.position.y + 2.2) - camera.position.y) * 0.035
         camera.position.x += (rocket.position.x * 0.35 - camera.position.x) * 0.04
         camera.lookAt(rocket.position.x * 0.4, rocket.position.y + 0.25, 0)
 
-        if (altitudeValue > 95 && phaseRef.current !== 'space') {
+        if (altitudeValue > 95 && phaseRef.current === 'flying') {
           setGamePhase('space')
-          setHint('Орбита достигнута! Управляй ракетой пальцем')
-          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
+          setHint('Орбита близко! На 1000 км ракета уменьшится — готовься к кометам')
+          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
         }
+
+        if (altitudeValue >= 100 && phaseRef.current !== 'danger') {
+          setGamePhase('danger')
+          setHint('1000 км! Ракета стала меньше. Облетай кометы и космических монстров')
+          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
+          obstacles.forEach((obstacle, index) => {
+            obstacle.group.visible = true
+            placeObstacle(obstacle, rocket.position.y, index)
+          })
+        }
+      } else if (phaseRef.current === 'crashed') {
+        rocket.rotation.z += delta * 1.6
+        rocket.rotation.x += delta * 1.1
+        if (flame) flame.visible = false
       } else {
         rocket.rotation.y += delta * 0.35
         if (flame) {
@@ -211,13 +326,34 @@ export default function App() {
         }
       }
 
+      if (dangerMode) {
+        obstacles.forEach((obstacle) => {
+          obstacle.group.position.y -= (2.8 + velocity * 0.18) * delta
+          obstacle.group.position.x += Math.sin(frame * 1.5 + obstacle.spin) * obstacle.drift * delta
+          obstacle.group.rotation.x += delta * obstacle.spin
+          obstacle.group.rotation.y += delta * obstacle.spin * 0.75
+
+          const passedRocket = obstacle.group.position.y < rocket.position.y - 4
+          if (passedRocket) {
+            avoided += 1
+            setDangerScore(avoided)
+            placeObstacle(obstacle, rocket.position.y + 6, Math.random() * 8)
+          }
+
+          const distance = obstacle.group.position.distanceTo(rocket.position)
+          if (distance < obstacle.radius + 0.42) {
+            crash()
+          }
+        })
+      }
+
       const flamePower = active ? (boost ? 1.35 : 0.85) : 0.45
-      if (flame) {
+      if (flame && phaseRef.current !== 'crashed') {
         flame.scale.setScalar(1)
         flame.scale.y = flamePower + Math.sin(frame * 22) * 0.15
         flame.visible = active || Math.sin(frame * 4) > 0
       }
-      engineLight.position.copy(rocket.position).add(new THREE.Vector3(0, -2.2, 0))
+      engineLight.position.copy(rocket.position).add(new THREE.Vector3(0, -2.2 * rocket.scale.y, 0))
       engineLight.intensity = active ? 3.5 + Math.sin(frame * 18) : 1.2
 
       smokeParticles.forEach((smoke, index) => {
@@ -233,11 +369,11 @@ export default function App() {
         }
       })
 
-      stars.rotation.y += delta * 0.012
+      stars.rotation.y += delta * (dangerMode ? 0.04 : 0.012)
       earth.rotation.y += delta * 0.035
       pad.visible = altitudeValue < 28
       earth.position.y = -7 - altitudeValue * 0.045
-      scene.background = new THREE.Color(altitudeValue > 80 ? '#020617' : '#071133')
+      scene.background = new THREE.Color(altitudeValue >= 100 ? '#12051f' : altitudeValue > 80 ? '#020617' : '#071133')
 
       if (Math.floor(frame * 10) % 2 === 0) {
         setAltitude(Math.floor(altitudeValue * 10))
@@ -297,6 +433,8 @@ export default function App() {
           {phase === 'ready' && 'На старте'}
           {phase === 'flying' && 'Взлёт'}
           {phase === 'space' && 'Космос'}
+          {phase === 'danger' && 'Опасная зона'}
+          {phase === 'crashed' && 'Авария'}
         </div>
       </section>
 
@@ -306,10 +444,16 @@ export default function App() {
           <strong>{altitude} км</strong>
         </div>
         <div className="meter">
-          <span>Скорость</span>
-          <strong>{speed} км/ч</strong>
+          <span>{phase === 'danger' || phase === 'crashed' ? 'Уклонения' : 'Скорость'}</span>
+          <strong>{phase === 'danger' || phase === 'crashed' ? dangerScore : `${speed} км/ч`}</strong>
         </div>
       </section>
+
+      {phase === 'danger' && (
+        <section className="danger-banner">
+          <ShieldAlert size={17} /> Кометы и монстры впереди — веди ракету пальцем
+        </section>
+      )}
 
       <section className="hud bottom">
         <p>{hint}</p>
@@ -321,17 +465,18 @@ export default function App() {
             className="boost"
             onPointerDown={() => {
               if (phase === 'ready') start()
-              boostRef.current = true
+              if (phase !== 'crashed') boostRef.current = true
             }}
             onPointerUp={() => {
-              boostRef.current = phase === 'space'
+              boostRef.current = phase === 'space' || phase === 'danger'
             }}
             onPointerLeave={() => {
-              boostRef.current = phase === 'space'
+              boostRef.current = phase === 'space' || phase === 'danger'
             }}
+            disabled={phase === 'crashed'}
           >
             {phase === 'ready' ? <Rocket size={22} /> : <Zap size={22} />}
-            {phase === 'ready' ? 'СТАРТ' : 'УСКОРЕНИЕ'}
+            {phase === 'ready' ? 'СТАРТ' : phase === 'crashed' ? 'СБИТО' : 'УСКОРЕНИЕ'}
           </button>
         </div>
       </section>
