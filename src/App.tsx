@@ -223,6 +223,7 @@ export default function App() {
   const boostRef = useRef(false)
   const steerRef = useRef({ x: 0, y: 0 })
   const phaseRef = useRef<GamePhase>('ready')
+  const storyOpenRef = useRef(false)
   const [phase, setPhase] = useState<GamePhase>('ready')
   const [altitude, setAltitude] = useState(0)
   const [speed, setSpeed] = useState(0)
@@ -321,18 +322,13 @@ export default function App() {
     let avoided = 0
     let dangerStartedAt = Number.POSITIVE_INFINITY
 
-    const crash = (planet?: PlanetInfo) => {
-      if (phaseRef.current === 'crashed') return
-      velocity = 0
+    const showPlanetStory = (planet: PlanetInfo) => {
+      if (storyOpenRef.current) return
+      velocity = Math.max(velocity * 0.35, 4)
       boostRef.current = false
-      setGamePhase('crashed')
-      if (planet) {
-        setPlanetStory(planet)
-        setHint(`Столкновение с планетой ${planet.name}! Прочитай рассказ и начни заново`)
-      } else {
-        setPlanetStory(null)
-        setHint('Столкновение с кометой! Нажми кнопку сброса и попробуй снова')
-      }
+      storyOpenRef.current = true
+      setPlanetStory(planet)
+      setHint(`Ты встретил планету ${planet.name}. Прочитай рассказ и продолжай полёт`)
       window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
     }
 
@@ -341,8 +337,9 @@ export default function App() {
       lastTime = now
       frame += delta
 
-      const active = phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger'
-      const dangerMode = phaseRef.current === 'danger'
+      const storyPaused = storyOpenRef.current
+      const active = !storyPaused && (phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger')
+      const dangerMode = !storyPaused && phaseRef.current === 'danger'
       const boost = boostRef.current || phaseRef.current === 'space' || dangerMode
 
       if (active) {
@@ -406,8 +403,11 @@ export default function App() {
           const distance = obstacle.group.position.distanceTo(rocket.position)
           const graceOver = frame - dangerStartedAt > 5
           if (graceOver && distance < obstacle.radius + 0.34) {
-            if (obstacle.kind === 'planet') {
-              crash(obstacle.planet)
+            if (obstacle.kind === 'planet' && obstacle.planet) {
+              showPlanetStory(obstacle.planet)
+              avoided += 1
+              setDangerScore(avoided)
+              placeObstacle(obstacle, rocket.position.y + 9, Math.random() * 8)
             } else {
               setHint('Комета задела ракету — держись дальше от хвоста!')
               window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')
@@ -479,6 +479,14 @@ export default function App() {
     window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
   }
 
+  const continueFlight = () => {
+    storyOpenRef.current = false
+    setPlanetStory(null)
+    boostRef.current = true
+    setHint('Рассказ прочитан — продолжаем полёт! Облетай следующие планеты и кометы')
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
+  }
+
   const reset = () => {
     window.location.reload()
   }
@@ -534,7 +542,7 @@ export default function App() {
               <span>Планета: {planetStory.name}</span>
             </div>
             <p>{planetStory.story}</p>
-            <button className="planet-card-button" onClick={reset}>Полететь снова</button>
+            <button className="planet-card-button" onClick={continueFlight}>Продолжить полёт</button>
           </div>
         </section>
       )}
