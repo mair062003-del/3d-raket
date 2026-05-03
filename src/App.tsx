@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { Globe2, RotateCcw, Rocket, ShieldAlert, Zap } from 'lucide-react'
+import { Coins, Gauge, Globe2, RotateCcw, Rocket, ShieldAlert, ShieldCheck, Store, Wrench, X, Zap } from 'lucide-react'
 import './App.css'
 
 declare global {
@@ -40,8 +40,67 @@ type Obstacle = {
   spin: number
   planet?: PlanetInfo
 }
+type UpgradeKey = 'engine' | 'maneuver' | 'shield'
+type Upgrades = Record<UpgradeKey, number>
+type UpgradeInfo = {
+  key: UpgradeKey
+  title: string
+  description: string
+  baseCost: number
+  icon: typeof Zap
+}
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const MAX_UPGRADE_LEVEL = 5
+const STORAGE_KEY = '3d-raket-progress'
+const DEFAULT_UPGRADES: Upgrades = { engine: 0, maneuver: 0, shield: 0 }
+const UPGRADE_LIST: UpgradeInfo[] = [
+  {
+    key: 'engine',
+    title: 'Двигатель',
+    description: 'Больше ускорение и максимальная скорость',
+    baseCost: 4,
+    icon: Zap,
+  },
+  {
+    key: 'maneuver',
+    title: 'Манёвренность',
+    description: 'Ракета быстрее уходит от комет пальцем',
+    baseCost: 4,
+    icon: Gauge,
+  },
+  {
+    key: 'shield',
+    title: 'Щит',
+    description: 'В каждом полёте держит удар одной кометы',
+    baseCost: 6,
+    icon: ShieldCheck,
+  },
+]
+
+const getUpgradeCost = (upgrade: UpgradeInfo, level: number) => upgrade.baseCost + level * 3
+
+const loadProgress = () => {
+  if (typeof window === 'undefined') {
+    return { coins: 0, upgrades: DEFAULT_UPGRADES }
+  }
+
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    if (!saved) return { coins: 0, upgrades: DEFAULT_UPGRADES }
+    const parsed = JSON.parse(saved) as Partial<{ coins: number; upgrades: Partial<Upgrades> }>
+    return {
+      coins: Math.max(0, Math.floor(parsed.coins ?? 0)),
+      upgrades: {
+        engine: clamp(Math.floor(parsed.upgrades?.engine ?? 0), 0, MAX_UPGRADE_LEVEL),
+        maneuver: clamp(Math.floor(parsed.upgrades?.maneuver ?? 0), 0, MAX_UPGRADE_LEVEL),
+        shield: clamp(Math.floor(parsed.upgrades?.shield ?? 0), 0, MAX_UPGRADE_LEVEL),
+      },
+    }
+  } catch {
+    return { coins: 0, upgrades: DEFAULT_UPGRADES }
+  }
+}
 
 const PLANETS: PlanetInfo[] = [
   {
@@ -415,9 +474,18 @@ export default function App() {
   const steerRef = useRef({ x: 0, y: 0 })
   const phaseRef = useRef<GamePhase>('ready')
   const storyOpenRef = useRef(false)
+  const shopOpenRef = useRef(false)
+  const upgradesRef = useRef<Upgrades>(DEFAULT_UPGRADES)
+  const shieldChargeRef = useRef(0)
+  const [progressLoaded] = useState(loadProgress)
   const [phase, setPhase] = useState<GamePhase>('ready')
   const [altitude, setAltitude] = useState(0)
   const [speed, setSpeed] = useState(0)
+  const [score, setScore] = useState(0)
+  const [coins, setCoins] = useState(progressLoaded.coins)
+  const [upgrades, setUpgrades] = useState<Upgrades>(progressLoaded.upgrades)
+  const [shieldCharge, setShieldCharge] = useState(0)
+  const [shopOpen, setShopOpen] = useState(false)
   const [dangerScore, setDangerScore] = useState(0)
   const [planetStory, setPlanetStory] = useState<PlanetInfo | null>(null)
   const [hint, setHint] = useState('Нажми СТАРТ и удерживай ускорение')
@@ -427,11 +495,51 @@ export default function App() {
     setPhase(next)
   }
 
+  const openShop = () => {
+    shopOpenRef.current = true
+    boostRef.current = false
+    setShopOpen(true)
+  }
+
+  const closeShop = () => {
+    shopOpenRef.current = false
+    setShopOpen(false)
+    boostRef.current = phaseRef.current === 'space' || phaseRef.current === 'danger'
+  }
+
+  const buyUpgrade = (upgrade: UpgradeInfo) => {
+    const level = upgrades[upgrade.key]
+    const cost = getUpgradeCost(upgrade, level)
+    if (level >= MAX_UPGRADE_LEVEL || coins < cost) return
+
+    setCoins((current) => current - cost)
+    setUpgrades((current) => {
+      const next = { ...current, [upgrade.key]: current[upgrade.key] + 1 }
+      upgradesRef.current = next
+      if (upgrade.key === 'shield' && phaseRef.current === 'ready') {
+        shieldChargeRef.current = next.shield > 0 ? 1 : 0
+        setShieldCharge(shieldChargeRef.current)
+      }
+      return next
+    })
+    setHint(`${upgrade.title}: уровень ${level + 1}`)
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')
+  }
+
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     tg?.ready?.()
     tg?.expand?.()
   }, [])
+
+  useEffect(() => {
+    upgradesRef.current = upgrades
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ coins, upgrades }))
+    } catch {
+      // Telegram WebView can deny storage in restricted modes; gameplay should still run.
+    }
+  }, [coins, upgrades])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -507,6 +615,7 @@ export default function App() {
 
     let velocity = 0
     let altitudeValue = 0
+    let flightTimeValue = 0
     let lastTime = performance.now()
     let frame = 0
     let animationId = 0
@@ -528,23 +637,28 @@ export default function App() {
       lastTime = now
       frame += delta
 
-      const storyPaused = storyOpenRef.current
-      const active = !storyPaused && (phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger')
-      const dangerMode = !storyPaused && phaseRef.current === 'danger'
+      const paused = storyOpenRef.current || shopOpenRef.current
+      const active = !paused && (phaseRef.current === 'flying' || phaseRef.current === 'space' || phaseRef.current === 'danger')
+      const dangerMode = !paused && phaseRef.current === 'danger'
       const boost = boostRef.current || phaseRef.current === 'space' || dangerMode
 
       if (active) {
-        const acceleration = boost ? (dangerMode ? 4.6 : 7.4) : 2.3
-        velocity = clamp(velocity + acceleration * delta, 0, dangerMode ? 24 : 18)
+        const currentUpgrades = upgradesRef.current
+        const engineBonus = 1 + currentUpgrades.engine * 0.09
+        const maneuverBonus = 1 + currentUpgrades.maneuver * 0.12
+        const acceleration = (boost ? (dangerMode ? 4.6 : 7.4) : 2.3) * engineBonus
+        const maxVelocity = (dangerMode ? 24 : 18) * (1 + currentUpgrades.engine * 0.07)
+        velocity = clamp(velocity + acceleration * delta, 0, maxVelocity)
         altitudeValue += velocity * delta
+        flightTimeValue += delta
 
         const targetScale = altitudeValue >= 100 ? 0.52 : 1
         rocket.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.055)
         rocket.position.y = -0.35 + altitudeValue * 0.18
-        rocket.position.x = steerRef.current.x * (dangerMode ? 2.75 : 1.8)
-        rocket.position.z = steerRef.current.y * (dangerMode ? 1.35 : 0.35)
-        rocket.rotation.z = -steerRef.current.x * (dangerMode ? 0.55 : 0.35)
-        rocket.rotation.x = steerRef.current.y * (dangerMode ? 0.34 : 0.18)
+        rocket.position.x = steerRef.current.x * (dangerMode ? 2.75 : 1.8) * maneuverBonus
+        rocket.position.z = steerRef.current.y * (dangerMode ? 1.35 : 0.35) * (1 + currentUpgrades.maneuver * 0.08)
+        rocket.rotation.z = -steerRef.current.x * (dangerMode ? 0.55 : 0.35) * maneuverBonus
+        rocket.rotation.x = steerRef.current.y * (dangerMode ? 0.34 : 0.18) * (1 + currentUpgrades.maneuver * 0.08)
 
         camera.position.y += ((rocket.position.y + 2.2) - camera.position.y) * 0.035
         camera.position.x += (rocket.position.x * 0.35 - camera.position.x) * 0.04
@@ -588,6 +702,10 @@ export default function App() {
           if (passedRocket) {
             avoided += 1
             setDangerScore(avoided)
+            if (obstacle.kind === 'comet') {
+              setCoins((current) => current + 1)
+              setHint('Чистый пролёт мимо кометы: +1 монета')
+            }
             placeObstacle(obstacle, rocket.position.y + 6, Math.random() * 8)
           }
 
@@ -600,8 +718,17 @@ export default function App() {
               setDangerScore(avoided)
               placeObstacle(obstacle, rocket.position.y + 9, Math.random() * 8)
             } else {
-              setHint('Комета задела ракету — держись дальше от хвоста!')
-              window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')
+              if (shieldChargeRef.current > 0) {
+                shieldChargeRef.current -= 1
+                setShieldCharge(shieldChargeRef.current)
+                setHint('Щит принял удар кометы')
+                window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
+              } else {
+                setGamePhase('crashed')
+                boostRef.current = false
+                setHint('Комета сбила ракету. Улучши щит или манёвренность в магазине')
+                window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy')
+              }
               placeObstacle(obstacle, rocket.position.y + 7, Math.random() * 8)
             }
           }
@@ -639,6 +766,7 @@ export default function App() {
       if (Math.floor(frame * 10) % 2 === 0) {
         setAltitude(Math.floor(altitudeValue * 10))
         setSpeed(Math.floor(velocity * 42))
+        setScore(Math.floor(altitudeValue * 15 + flightTimeValue * 8 + avoided * 25))
       }
 
       renderer.render(scene, camera)
@@ -665,6 +793,8 @@ export default function App() {
 
   const start = () => {
     boostRef.current = true
+    shieldChargeRef.current = upgradesRef.current.shield > 0 ? 1 : 0
+    setShieldCharge(shieldChargeRef.current)
     setGamePhase('flying')
     setHint('Держи ускорение и веди пальцем, чтобы стабилизировать полёт')
     window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')
@@ -709,6 +839,14 @@ export default function App() {
 
       <section className="hud meters">
         <div className="meter">
+          <span>Очки</span>
+          <strong>{score}</strong>
+        </div>
+        <div className="meter">
+          <span>Монеты</span>
+          <strong>{coins}</strong>
+        </div>
+        <div className="meter">
           <span>Высота</span>
           <strong>{altitude} км</strong>
         </div>
@@ -720,10 +858,57 @@ export default function App() {
 
       {phase === 'danger' && (
         <section className="danger-banner">
-          <ShieldAlert size={17} /> Кометы и планеты впереди — веди ракету пальцем
+          <ShieldAlert size={17} />
+          <span>Кометы и планеты впереди</span>
+          <strong>Щит: {shieldCharge}</strong>
         </section>
       )}
 
+
+      {shopOpen && (
+        <section className="planet-modal shop-modal" role="dialog" aria-label="Магазин улучшений ракеты">
+          <div className="planet-card shop-card">
+            <div className="planet-card-title shop-title">
+              <Wrench size={22} />
+              <span>Улучшения ракеты</span>
+              <button className="icon-close" onClick={closeShop} aria-label="Закрыть магазин">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="shop-balance">
+              <Coins size={18} />
+              <strong>{coins}</strong>
+            </div>
+            <div className="upgrade-list">
+              {UPGRADE_LIST.map((upgrade) => {
+                const Icon = upgrade.icon
+                const level = upgrades[upgrade.key]
+                const maxed = level >= MAX_UPGRADE_LEVEL
+                const cost = getUpgradeCost(upgrade, level)
+                const disabled = maxed || coins < cost
+
+                return (
+                  <article className="upgrade-item" key={upgrade.key}>
+                    <div className="upgrade-icon">
+                      <Icon size={20} />
+                    </div>
+                    <div className="upgrade-copy">
+                      <div>
+                        <strong>{upgrade.title}</strong>
+                        <span>Ур. {level}/{MAX_UPGRADE_LEVEL}</span>
+                      </div>
+                      <p>{upgrade.description}</p>
+                    </div>
+                    <button className="upgrade-buy" onClick={() => buyUpgrade(upgrade)} disabled={disabled}>
+                      {maxed ? 'MAX' : `${cost}`}
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {planetStory && (
         <section className="planet-modal" role="dialog" aria-label={`Рассказ о планете ${planetStory.name}`}>
@@ -743,6 +928,9 @@ export default function App() {
         <div className="controls">
           <button className="secondary" onClick={reset} aria-label="Начать заново">
             <RotateCcw size={18} />
+          </button>
+          <button className="secondary" onClick={openShop} aria-label="Магазин улучшений">
+            <Store size={18} />
           </button>
           <button
             className="boost"
